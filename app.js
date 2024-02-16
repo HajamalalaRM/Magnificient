@@ -3,9 +3,9 @@ const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
-// const cors = require('cors');
-// const mongoose =  require('mongoose');
-const MongoClient = require("mongodb").MongoClient;
+const {MongoClient, ObjectId} = require("mongodb");
+
+const cors = require('cors');
 
 const indexRouter = require('./routes/index');
 const usersRouter = require('./routes/users');
@@ -13,53 +13,17 @@ const { connectToDb, getDb } = require('./db');
 
 const app = express();
 
-// app.set('views', path.join(__dirname, 'views'));
-// app.set('view engine', 'jade');
+
 
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
-
+app.use(cors());
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
-
-
-
-//Connection a la bdd
-// mongoose.connect('mongodb://127.0.0.1:27017/tp1');
-// const db = mongoose.connection;
-// // Gestion des erreurs de connexion à la base de données
-// db.on('error', console.error.bind(console, 'Erreur de connexion à MongoDB :'));
-// db.once('open', () => {
-//   console.log('Connecté à la base de données MongoDB');
-// });
-
-// const filmSchema = new mongoose.Schema({
-//   title: String,
-//   genre: String,
-//   releaseYear: Number,
-//   director: String,
-//   actors: [String],
-//   rating: Number,
-// });
-
-// const Film = mongoose.model('film', filmSchema);
-
-// app.get('/films', async (req, res) => {
-//   try {
-//     // Utiliser le modèle Mongoose pour sélectionner tous les documents de la collect'ion
-//     const films = await Film.find();
-//     console.log(films);
-//     res.json(films);
-    
-//   } catch (error) {
-//     console.error('Erreur lors de la récupération des films :', error);
-//     res.status(500).json({ error: 'Erreur lors de la récupération des films' });
-//   }
-// });
 
 
 //--------------------------------------------------------------------
@@ -69,39 +33,111 @@ connectToDb((err)=>{
     app.listen(3000, ()=>{
       console.log('app listening on port 3000');
     })
-    db = getDb()
+    db = getDb();
   }
 })
 
-app.post('/singin',(req, res)=>{
+app.post('/signup',(req, res)=>{
   const utilisateur = req.body;
-  db.collection('utilisateurs')
-    .insertOne(utilisateur)
-    .then(result => {
-      res.status(201).json(result)
+  emailNotExist(req.body.email)
+    .then((emailNotExist) => {
+      console.log("eee: " + emailNotExist);
+      // Use the result of emailNotExist as needed
+      if(emailNotExist){
+        db.collection('utilisateurs')
+          .insertOne(utilisateur)
+          .then(result => {
+            res.status(201).json(result)
+          })
+          .catch(error =>{
+            res.status(500).json({error: 'Sign up error',cause:'erreur db'})
+          })
+      }else{
+        res.status(201).json({error: 'Sign up error',cause:'email already exist'})
+      }
     })
-    .catch(err =>{
-      res.status(500).json({err: 'Signin error'})
+    .catch((error) => {
+      console.error("Error checking email existence:", error);
+      res.status(500).json({ error: "An error occurred" });
+    });
+});
+
+app.post('/signin',(req, res)=>{
+  console.log("REQUEST SIGNIN")
+  db.collection('utilisateurs')
+    .find(req.body)
+    .toArray()
+    .then((user)=>{
+      if(user.length>0){
+        res.status(201).json({id: user[0]._id});
+      }else{
+        res.status(201).json({error: "Sign in error",cause:"user not exist"});
+      }
+    })
+    .catch((err)=>{
+      res.status(500).json({error: "Sign in error"})
     })
 });
 
-app.post('/singup',(req, res)=>{
-  const utilisateur = req.body;
-  console.log(utilisateur)
-  db.collection('utilisateurs')
-    .findOne(utilisateur)
-    // .count()
+
+app.post('/appointment',(req, res)=>{
+  db.collection('appointments')
+    .insertOne({
+      date: new Date("2024-02-17T10:00:00Z"),
+      idUtilisateur: "65cb2902145eb2388401f79a",
+      description: "test"
+    })
     .then(result => {
-      console.log(result);
       res.status(201).json(result)
     })
-    .catch(err =>{
-      res.status(500).json({err: 'Signin error'})
+    .catch(error =>{
+      res.status(500).json({error: 'Sign up error',cause:'erreur db'})
+    })     
+});
+
+app.get('/appointments',(req,res)=>{
+  console.log("REQUEST APPOINTMENTS")
+  db.collection("appointments").aggregate([
+    {
+      $lookup: {
+        from: "utilisateurs",
+        localField: "idUtilisateur",
+        foreignField: "_id",
+        as: "user_appointments"
+      }
+    },
+    {
+      $match: {
+        "user_appointments._id": new ObjectId("65cb2902145eb2388401f79a")
+      }
+    }
+  ])
+  .toArray()
+  .then(result=>{
+    console.log(result)
+      res.status(201).json(result);        
     })
-})
+  .catch((err)=>{
+    res.status(500).json({error: "Sign in error"})
+  })
+});
 
-
-
+function emailNotExist(eml) {
+  return new Promise((resolve, reject) => {
+    db.collection('utilisateurs')
+      .find({ email: eml })
+      .toArray()
+      .then((user) => {
+        console.log("usr: " + user.length);
+        console.log("tr: " + (user.length == 0));
+        resolve(user.length == 0);
+      })
+      .catch((error) => {
+        console.error("Error checking email existence:", error);
+        reject(error);
+      });
+  });
+}
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
@@ -114,10 +150,6 @@ app.use(function(err, req, res, next) {
   next();
 });
 
-
-// app.listen(PORT, () => {  
-//   console.log(`Serveur Express en cours d'exécution sur le port ${PORT}`);
-// });
 // error handler
 app.use(function(err, req, res, next) {
   // set locals, only providing error in development
@@ -131,3 +163,5 @@ app.use(function(err, req, res, next) {
 
 
 module.exports = app;
+
+
