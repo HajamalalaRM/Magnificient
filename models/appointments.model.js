@@ -1,16 +1,28 @@
 const mongoose = require('mongoose');
 
 const appointmentSchema = mongoose.Schema({
-    time: Date,
-    userId: {
+    userClientId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Users"
     },
-    serviceId:[{
+    userEmpId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Users"
+    },
+    servicesId:[{
         type: mongoose.Schema.Types.ObjectId,
         ref: "Services"
-    }]
+    }],
+    datetime: Date,
+    status: String,
+    description: String
 });
+
+/**
+ * in progress
+ * canceled
+ * finished
+ */
 
 const appointmentModel = mongoose.model('appointments', appointmentSchema);
 

@@ -4,14 +4,13 @@ const serviceModel = require('../models/services.model')
 
 
 /* GET home page. */
-router.get('/', function(req, res) {
+router.get('/list', function(req, res) {
     let serviceObj = new serviceModel();
     serviceModel.find()
     .then(services=>{
         res.send({status:200, services: services});
     })    
 });
-
 
 /**Add new Service */
 router.post('/add',function(req, res) {

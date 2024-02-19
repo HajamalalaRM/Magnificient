@@ -43,6 +43,14 @@ router.post('/signin',(req, res)=>{
     })
 });
 
+/* GET home page. */
+router.get('/list', function(req, res) {
+  userModel.find({role:2})
+  .then(users=>{
+      res.send({status:200, users: users});
+  })    
+});
+
 
 
 function userEmailNotExist(email){
