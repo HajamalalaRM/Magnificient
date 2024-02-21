@@ -14,6 +14,7 @@ const appointmentSchema = mongoose.Schema({
         ref: "Services"
     }],
     datetime: Date,
+    dateFin: Date,
     status: String,
     description: String
 });

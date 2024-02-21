@@ -1,16 +1,12 @@
 var express = require('express');
 var router = express.Router();
-// var mongoose = require('mongoose');
+const mongoose = require('mongoose');
+
 
 const userModel = require('../models/users.model')
 
-/* GET users listing. */
-router.get('/', function(req, res) {
-  res.send('respond with a resource');
-});
-
 /* User Registration */
-router.post('/signup', async function(req, res) {
+router.post('/signup', async (req, res)=> {
   try{
     userEmailNotExist(req.body.email)
     .then(async (emailNotExist) => {
@@ -43,16 +39,92 @@ router.post('/signin',(req, res)=>{
     })
 });
 
-/* GET home page. */
-router.get('/list', function(req, res) {
+/**Get All employe */
+router.get('/employes', (req, res)=>{
   userModel.find({role:2})
   .then(users=>{
-      res.send({status:200, users: users});
+    const userList = users.map(user => ({ _id: user._id, name: user.name }));
+    res.status(200).json({status: 200,users: userList});  
   })    
 });
 
+/**Get All Users details */
+router.get('/listAllUsers',(req, res)=>{
+  userModel.find({},{_id:1, name:1, email:1, contact:1, employepreferences:1, servicespreferences:1, role:1})
+  .then(users=>{
+    console.log(users)
+    res.status(200).json({status: 200,usersList: users});
+  })
+});
 
+/**Get User details By Id */
+router.get('/detailUser',(req, res)=>{
+  userModel.findById(req.body.iduser,{_id:1, name:1, email:1, contact:1, employepreferences:1, servicespreferences:1, role:1})
+  .then(user=>{    
+    res.status(200).json({status: 200,userDetails: user});
+  })
+});
 
+/**Get all employe free at this time */
+router.get('/free',(req, res)=>{
+  
+});
+
+/**Add prefered service for the specified user */
+router.post('/addSrvPreference',(req,res)=>{
+  userModel.findById(req.body.userid)
+  .then(usr=>{    
+    if(usr){
+      if(!usr.servicespreferences.includes(req.body.srvprefere)){
+        usr.servicespreferences.push(req.body.srvprefere);    
+        usr.save();
+        res.send({status:201, message: 'Preference addded successfully'});
+      }else{
+        res.status(200).json({error: "Add preference error",cause:"Preference already added"});
+      }
+    }else{
+      res.status(200).json({error: "Add preference error",cause:"user not exist"});
+    }
+  })
+  .catch(err=>{
+    console.log(err);
+  })  
+});
+
+/**Remove prefered service for specified user */
+router.get('/removeSrvPreference',(req,res)=>{
+  userModel.findById(req.body.userid)
+  .then(usr=>{
+    console.log(usr);
+    if(usr){
+      if(usr.servicespreferences.includes(req.body.srvprefere)){
+        console.log("Includes")
+
+        usr.servicespreferences.forEach(element => {
+          // console.log(typeof element)
+          // console.log(element.toString())
+        });
+        
+        usr.servicespreferences = new usr.servicespreferences.filter(element=>{
+          console.log("Element : "+element.toString()+"  "+element);
+          console.log(typeof element.toString());
+          console.log("Req : "+req.body.srvprefere.toString());
+          console.log(typeof req.body.srvprefere.toString());
+          element.toString()!== req.body.srvprefere.toString();
+        });    
+        console.log(usr.servicespreferences)
+        // usr.save();
+        // res.send({status:201, message: 'Preference removed successfully'});
+      }else{
+        res.status(200).json({error: "Remove preference error",cause:"Not prefered yet"});
+      }
+    }else{
+      res.status(200).json({error: "Remove preference error",cause:"user not exist"});
+    }
+  })
+})
+
+/**Verify if the email exist */
 function userEmailNotExist(email){
   return new Promise((resolve, reject) => {
    userModel.findOne({email:email})

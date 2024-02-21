@@ -5,7 +5,15 @@ const userSchema = mongoose.Schema({
     password: String,
     email: String,
     contact: String,
-    role: Number
+    role: Number,
+    employepreferences:[{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Users"
+    }],
+    servicespreferences:[{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Services"
+    }],
 });
 
 const userModel = mongoose.model('Users', userSchema);
