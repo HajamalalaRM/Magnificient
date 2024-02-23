@@ -12,7 +12,11 @@ router.get('/list', function(req, res) {
     })    
 });
 
-/**Add new Service */
+/**Add new Service
+ * name
+ * coast
+ * durationMinute
+ */
 router.post('/add',function(req, res) {
     let serviceObj = new serviceModel(req.body);
     serviceObj.save()

@@ -3,11 +3,10 @@ var router = express.Router();
 const appointmentModel = require('../models/appointments.model')
 const serviceModel = require('../models/services.model')
 const mongoose = require('mongoose');
-// const moment = require('moment-timezone');
 const cookieParser = require('cookie-parser');
 
 
-/* GET home page. */
+/* List all appointments. */
 router.get('/', function(req, res) {
     let appointmentObj = new appointmentModel();
     appointmentModel.find()
@@ -17,7 +16,15 @@ router.get('/', function(req, res) {
 });
 
 
-/**Add new Service */
+/**Add new appointments
+ * 
+ * datetime
+ * userClientId
+ * userEmpId
+ * servicesId
+ * status
+ * description
+ */
 router.post('/add',function(req, res) {
     const dateString = req.body.datetime;
     let appointmentObj = new appointmentModel(req.body);
@@ -45,7 +52,7 @@ router.post('/add',function(req, res) {
    
 });
 
-
+/**Sum the service of the duration */
 async function getSumServices(idServices) {
     try {
       const totalDuration = await serviceModel.aggregate([

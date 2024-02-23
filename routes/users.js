@@ -5,7 +5,14 @@ const mongoose = require('mongoose');
 
 const userModel = require('../models/users.model')
 
-/* User Registration */
+/**  User Registration
+ * 
+ * name
+ * password
+ * email
+ * contact
+ * role
+ */
 router.post('/signup', async (req, res)=> {
   try{
     userEmailNotExist(req.body.email)
@@ -24,7 +31,11 @@ router.post('/signup', async (req, res)=> {
   }
 });
 
-/* User Authentification */
+/**  User Authentification
+ * 
+ * email
+ * password
+ */
 router.post('/signin',(req, res)=>{
   userModel.findOne(req.body)
     .then((user)=>{      
@@ -57,23 +68,178 @@ router.get('/listAllUsers',(req, res)=>{
   })
 });
 
-/**Get User details By Id */
-router.get('/detailUser',(req, res)=>{
-  userModel.findById(req.body.iduser,{_id:1, name:1, email:1, contact:1, employepreferences:1, servicespreferences:1, role:1})
-  .then(user=>{    
-    res.status(200).json({status: 200,userDetails: user});
-  })
+/**Get User details By Id
+ * 
+ * idiser
+ */
+router.post('/detailUser',(req, res)=>{
+  const userId = req.body.iduser;
+  if(userId){
+    userModel.aggregate([
+      {
+        $match: {
+          role: 1,
+          _id: new mongoose.Types.ObjectId(userId)
+        }
+      },
+      {
+        $lookup: {
+          from: "services",
+          localField: "servicespreferences",
+          foreignField: "_id",
+          as: "preferred_services"
+        }
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "employepreferences",
+          foreignField: "_id",
+          as: "employee_users"
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          email: 1,
+          contact: 1,
+          role: 1,
+          preferred_services: 1,
+          employee_users: 1
+        }
+      }
+    ]).then(employes=>{
+      res.status(200).json({employedetails: employes});
+    })
+  }else{
+    res.status(200).json({status: 200,message: "Need date"});
+  }    
 });
 
-/**Get all employe free at this time */
-router.get('/free',(req, res)=>{
-  
+/**Get user appointments details
+ * 
+ * iduser
+ */
+router.post('/userAppointment',(req,res)=>{
+  const userId = req.body.iduser;
+  if(userId){
+        
+    userModel.aggregate([
+      {
+        $match: {
+          role: 1,
+          _id: new mongoose.Types.ObjectId(userId)
+        }
+      },
+      {
+        $lookup: {
+          from: "appointments",
+          localField: "_id",
+          foreignField: "userClientId",
+          as: "userappointments"
+        }
+      },
+      {
+        $unwind: "$userappointments"
+      },
+      {
+        $lookup: {
+          from: "services",
+          localField: "userappointments.servicesId",
+          foreignField: "_id",
+          as: "userappointments.serviceDetails"
+        }
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "userappointments.userEmpId",
+          foreignField: "_id",
+          as: "userappointments.empDetails"
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          email: 1,
+          contact: 1,
+          "userappointments._id": 1,
+          "userappointments.datetime": 1,
+          "userappointments.dateFin": 1,
+          "userappointments.description": 1,
+          "userappointments.status": 1,
+          "userappointments.serviceDetails": 1,
+          "userappointments.empDetails._id": 1,
+          "userappointments.empDetails.name": 1
+        }
+      },
+      {
+        $group: {
+          _id: "$_id",
+          name: { $first: "$name" },
+          email: { $first: "$email" },
+          contact: { $first: "$contact" },
+          userappointments: { $push: "$userappointments" }
+        }
+      }
+    ]).then(user=>{
+      res.status(200).json({userappointments: user});
+    })
+  }else{
+    res.status(200).json({status: 200,message: "Need iduser"});      
+  }
+
+})
+
+/**Get all employe available at this time */
+router.post('/available',(req, res)=>{
+  const specifiedDateTime = new Date(req.body.datetime);
+  if(specifiedDateTime){
+    userModel.aggregate([
+      {
+        $match: {
+          role: 2 
+        }
+      },
+      {
+        $lookup: {
+          from: "appointments",
+          localField: "_id",
+          foreignField: "userEmpId",
+          as: "user_appointments"
+        }
+      },
+      {
+        $match: {
+          $or: [
+            {
+              user_appointments: { $size: 0 } 
+            },
+            {
+              $and: [
+                { user_appointments: { $not: { $elemMatch: { datetime: { $lte: specifiedDateTime }, dateFin: { $gte: specifiedDateTime } } } } },
+                { user_appointments: { $not: { $elemMatch: { datetime: { $lte: specifiedDateTime }, dateFin: { $gte: specifiedDateTime } } } } }
+              ]
+            }
+          ]
+        }
+      }
+    ])
+    .then(employes=>{
+      res.status(200).json({status: 200,employesList: employes});
+    })
+  }else{
+    res.status(200).json({status: 200,message: "Need date"});
+  }  
 });
+
 
 /**Add prefered service for the specified user */
 router.post('/addSrvPreference',(req,res)=>{
   userModel.findById(req.body.userid)
-  .then(usr=>{    
+  .then(usr=>{
     if(usr){
       if(!usr.servicespreferences.includes(req.body.srvprefere)){
         usr.servicespreferences.push(req.body.srvprefere);    
@@ -88,7 +254,7 @@ router.post('/addSrvPreference',(req,res)=>{
   })
   .catch(err=>{
     console.log(err);
-  })  
+  })
 });
 
 /**Remove prefered service for specified user */
@@ -101,17 +267,18 @@ router.get('/removeSrvPreference',(req,res)=>{
         console.log("Includes")
 
         usr.servicespreferences.forEach(element => {
-          // console.log(typeof element)
-          // console.log(element.toString())
+          console.log(typeof element)
+          console.log(element.toString())
         });
         
         usr.servicespreferences = new usr.servicespreferences.filter(element=>{
           console.log("Element : "+element.toString()+"  "+element);
           console.log(typeof element.toString());
           console.log("Req : "+req.body.srvprefere.toString());
-          console.log(typeof req.body.srvprefere.toString());
+          console.log(typeof req.body.srvprefere.toString());    
           element.toString()!== req.body.srvprefere.toString();
         });    
+
         console.log(usr.servicespreferences)
         // usr.save();
         // res.send({status:201, message: 'Preference removed successfully'});
