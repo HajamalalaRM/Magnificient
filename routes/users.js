@@ -61,11 +61,42 @@ router.get('/employes', (req, res)=>{
 
 /**Get All Users details */
 router.get('/listAllUsers',(req, res)=>{
-  userModel.find({},{_id:1, name:1, email:1, contact:1, employepreferences:1, servicespreferences:1, role:1})
+  userModel.aggregate([
+    {
+      $match:{
+        role: 1
+      }
+    },{
+      $lookup:{
+        from: "services",
+        localField: "servicespreferences",
+        foreignField: "_id",
+        as: "preferred_services"
+      }
+    },{
+      $lookup:{
+        from: "users",
+        localField: "employepreferences",
+        foreignField: "_id",
+        as: "preferred_employes"
+      }
+    },{
+      $project: {
+        _id: 1,
+        name: 1,
+        email: 1,
+        contact: 1,
+        role: 1,
+        preferred_services: 1,
+        "preferred_employes._id": 1,
+        "preferred_employes.name": 1    
+      }
+    }
+  ])
   .then(users=>{
-    console.log(users)
-    res.status(200).json({status: 200,usersList: users});
+    res.status(200).json({usersdetails: users});
   })
+
 });
 
 /**Get User details By Id
@@ -121,14 +152,14 @@ router.post('/detailUser',(req, res)=>{
  * 
  * iduser
  */
-router.post('/userAppointment',(req,res)=>{
+router.post('/empAppointment',(req,res)=>{
   const userId = req.body.iduser;
   if(userId){
         
     userModel.aggregate([
       {
         $match: {
-          role: 1,
+          role: 2,
           _id: new mongoose.Types.ObjectId(userId)
         }
       },
@@ -136,7 +167,7 @@ router.post('/userAppointment',(req,res)=>{
         $lookup: {
           from: "appointments",
           localField: "_id",
-          foreignField: "userClientId",
+          foreignField: "userEmpId",
           as: "userappointments"
         }
       },
@@ -154,10 +185,13 @@ router.post('/userAppointment',(req,res)=>{
       {
         $lookup: {
           from: "users",
-          localField: "userappointments.userEmpId",
+          localField: "userappointments.userClientId",
           foreignField: "_id",
-          as: "userappointments.empDetails"
+          as: "userappointments.clientDetails"
         }
+      },
+      {
+        $sort: { "userappointments.datetime": 1 } 
       },
       {
         $project: {
@@ -171,8 +205,8 @@ router.post('/userAppointment',(req,res)=>{
           "userappointments.description": 1,
           "userappointments.status": 1,
           "userappointments.serviceDetails": 1,
-          "userappointments.empDetails._id": 1,
-          "userappointments.empDetails.name": 1
+          "userappointments.clientDetails._id": 1,
+          "userappointments.clientDetails.name": 1
         }
       },
       {
@@ -184,7 +218,8 @@ router.post('/userAppointment',(req,res)=>{
           userappointments: { $push: "$userappointments" }
         }
       }
-    ]).then(user=>{
+    ])
+    .then(user=>{
       res.status(200).json({userappointments: user});
     })
   }else{
@@ -236,7 +271,11 @@ router.post('/available',(req, res)=>{
 });
 
 
-/**Add prefered service for the specified user */
+/**Add prefered service for the specified user
+ * 
+ * iduser
+ * srvprefere
+ */
 router.post('/addSrvPreference',(req,res)=>{
   userModel.findById(req.body.userid)
   .then(usr=>{
@@ -257,31 +296,30 @@ router.post('/addSrvPreference',(req,res)=>{
   })
 });
 
-/**Remove prefered service for specified user */
-router.get('/removeSrvPreference',(req,res)=>{
+/**Remove prefered service for specified user
+ * 
+ * userid
+ * srvprefere
+ */
+router.post('/removeSrvPreference',(req,res)=>{
   userModel.findById(req.body.userid)
   .then(usr=>{
     console.log(usr);
     if(usr){
       if(usr.servicespreferences.includes(req.body.srvprefere)){
         console.log("Includes")
+        console.log("SRV : "+usr.servicespreferences)
+        console.log("Type : "+ typeof usr.servicespreferences)
 
-        usr.servicespreferences.forEach(element => {
-          console.log(typeof element)
-          console.log(element.toString())
-        });
-        
-        usr.servicespreferences = new usr.servicespreferences.filter(element=>{
-          console.log("Element : "+element.toString()+"  "+element);
-          console.log(typeof element.toString());
-          console.log("Req : "+req.body.srvprefere.toString());
-          console.log(typeof req.body.srvprefere.toString());    
-          element.toString()!== req.body.srvprefere.toString();
-        });    
-
-        console.log(usr.servicespreferences)
-        // usr.save();
-        // res.send({status:201, message: 'Preference removed successfully'});
+        let newdata = [];
+        usr.servicespreferences.forEach(element => {                    
+          if(element.toString()!== req.body.srvprefere.toString()){
+            newdata.push(element);
+          }
+        });     
+        usr.servicespreferences = newdata;
+        usr.save();
+        res.send({status:201, message: 'Preference removed successfully'});
       }else{
         res.status(200).json({error: "Remove preference error",cause:"Not prefered yet"});
       }
@@ -291,18 +329,41 @@ router.get('/removeSrvPreference',(req,res)=>{
   })
 })
 
+/**Add prefered employe for the specified user
+ * iduser
+ */
+router.post('/addEmpPreference',(req,res)=>{
+  userModel.findById(req.body.userid)
+  .then(usr=>{
+    if(usr){
+      if(!usr.employepreferences.includes(req.body.empprefere)){
+        usr.employepreferences.push(req.body.empprefere);    
+        usr.save();
+        res.send({status:201, message: 'Preference addded successfully'});
+      }else{
+        res.status(200).json({error: "Add preference error",cause:"Preference already added"});
+      }
+    }else{
+      res.status(200).json({error: "Add preference error",cause:"user not exist"});
+    }
+  })
+  .catch(err=>{
+    console.log(err);
+  })
+});
+
 /**Verify if the email exist */
 function userEmailNotExist(email){
   return new Promise((resolve, reject) => {
-   userModel.findOne({email:email})
-   .then((user) => {
-    resolve(user == null);
-  })
-  .catch((error) => {
-    console.error("Error checking email existence:", error);
-    reject(error);
-  });
-  
+    userModel.findOne({email:email})
+    .then((user) => {
+      resolve(user == null);
+    })
+    .catch((error) => {
+      console.error("Error checking email existence:", error);
+      reject(error);
+    });
+    
   });
 }
 

@@ -1,6 +1,14 @@
 const mongoose = require('mongoose');
 
-const appointmentSchema = mongoose.Schema({
+const payementSchema = mongoose.Schema({
+    datepay: Date,
+    coast: Number,
+    pay: Number,
+    status: Boolean,
+    idappointment:{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Appointments"
+    },
     userClientId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Users"
@@ -13,20 +21,8 @@ const appointmentSchema = mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "Services"
     }],
-    datetime: Date,
-    dateFin: Date,
-    status: String,
-    description: String
 });
 
+const payementModel = mongoose.model('Payements', payementSchema);
 
-/**
- * in progress
- * waiting for payement
- * canceled
- * finished
- */
-
-const appointmentModel = mongoose.model('appointments', appointmentSchema);
-
-module.exports = appointmentModel;
+module.exports = payementModel;

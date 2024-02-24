@@ -11,6 +11,7 @@ const indexRouter = require('./routes/index');
 const usersRouter = require('./routes/users');
 const servicesRouter = require('./routes/services');
 const appointmentsRouter = require('./routes/appointments');
+const payementsRouter = require('./routes/payements');
 
 var mongoose = require('mongoose');
 // const { connectToDb, getDb } = require('./db');
@@ -30,6 +31,7 @@ app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/services', servicesRouter);
 app.use('/appointments', appointmentsRouter);
+app.use('/payements', payementsRouter);
 
 
 //--------------------------------------------------------------------
