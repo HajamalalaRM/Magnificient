@@ -2,34 +2,37 @@ var express = require('express');
 var router = express.Router();
 const mongoose = require('mongoose');
 
-
-
 const payementModel = require('../models/payements.model')
 const appointmentModel = require('../models/appointments.model')
 
-router.post('/pay', function(req, res) {    
+router.post('/pay', function(req, res) {
     const idappointment = req.body.idappointment;
     let pay = req.body.pay;
     getDetailsServicesCoast(idappointment)
-    .then(data=>{
+    .then(async data=>{
         if(data){
-            data1 = data[0];            
+            let data1 = data[0];            
             let payement = new payementModel();
+            
             payement.datepay = new Date();
             payement.coast = data1.coastSum;
 
             payement.pay = pay;
             let reste = pay-payement.coast;            
             if(reste>=0){
+                let appointment = await appointmentModel.findById(idappointment);
                 payement.status = true;
+                appointment.status = "payed";
+                appointment.save();
             }else{
                 payement.status = false;
             }
             payement.idappointment = idappointment;
             payement.userClientId = data1.userClientId;
             payement.userEmpId = data1.userEmpId;
-            payement.servicesId = data1.services.map(d =>new mongoose.Types.ObjectId(d._id));            
+            payement.servicesId = data1.services.map(d =>new mongoose.Types.ObjectId(d._id));
 
+            
             payement.save()
             .then(d=>{
                 res.send({status:201, message: 'Payement effectued successfully', id: d._id});
@@ -37,22 +40,14 @@ router.post('/pay', function(req, res) {
         }else{
             res.send({status:200, message: 'Payement error: appointment not found'});
         }
-        
     })
     .catch(err=>{
         console.log(err)
-    })
-    // let date = new Date();
-    
-    // payementModel.find()
-    // .then(payement=>{
-    //     res.send({status:200, payements: payement});
-    // })    
+    })   
 });
 
 async function getDetailsServicesCoast(idappointment){
     try{
-
         return appointmentModel.aggregate([
             {
                 $match: {

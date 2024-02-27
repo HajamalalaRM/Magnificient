@@ -28,4 +28,27 @@ router.post('/add',function(req, res) {
     })
 });
 
+/**Update user */
+router.post('/updateService',(req,res)=>{
+    serviceModel.findOneAndUpdate({_id:req.body.idservice}, req.body,{ new: true })
+    .then(updatedService => {
+      res.status(200).json({updatedService: updatedService});
+    })
+    .catch(error => {
+      res.status(200).json({error: "Can't update the service"});
+    });
+});
+
+/**Remove service By id */
+router.post('/removeService',(req,res)=>{
+    serviceModel.findOneAndDelete({_id:req.body.idservice},{ new: true })
+    .then(deletedService => {
+      res.status(200).json({deletedService: deletedService});
+    })
+    .catch(error => {
+      res.status(200).json({error: "Can't update the service"});  
+    });
+});
+
+
 module.exports = router;

@@ -36,17 +36,24 @@ router.post('/add',function(req, res) {
         let dtemp = new Date(dt);
         dtemp.setMinutes(dtemp.getMinutes()+sum);
         appointmentObj.dateFin = new Date(dtemp);
-
+        
         await verrifAppointmentDurationConflit(appointmentObj.userEmpId,appointmentObj.datetime,appointmentObj.dateFin)
-        .then(data=>{
-            console.log("Data : "+data);
-            if(!data[0].superpose){
-                appointmentObj.save()     
+        .then(data=>{                        
+            let superp = false;
+            data.forEach(element => {
+                if(element.superpose)superp=true;
+            });            
+            if(!superp||data.length==0){                
+                appointmentObj.save()
                 .then(d=>{
                         res.send({status:201, message: 'Appointment addded successfully', id: d._id});
                 })
             }else{
-                res.send({status:200, message: "appointment superposition",data:data[0]});
+                let temp = [];
+                data.forEach(element => {
+                    if(element.superpose)temp.push(element);
+                });
+                res.send({status:200, error: "appointment superposition",data_error:temp});
             }
         })
         .catch(err=>{
@@ -82,18 +89,55 @@ router.post('/update/:data',(req,res)=> {
     });
 });
 
+/**Search by date */
+router.post('/search/date',(req,res)=>{
+    let date1 = req.body.date1;
+    let date2 = req.body.date2;
+    appointmentModel.aggregate([
+    {
+        $match: {      
+            datetime: {
+                $gte: new Date(date1),
+                $lt: new Date(date2)
+            }
+        }
+    }
+    ]).then(data=>{
+        res.status(200).json({dataSearch: data});
+    }).catch(err=>{
+        res.status(200).json({error: "Can't search"});  
+    });
+
+});
+
+/**Search by description */
+router.post('/search/description',(req,res)=>{
+    let search = req.body.search;    
+    appointmentModel.find({
+        description: {
+            $regex: search,
+            $options: "i"
+        }
+    }).then(data=>{
+        res.status(200).json({dataSearch: data});
+    }).catch(err=>{
+        res.status(200).json({error: "Can't search"});  
+    });
+});
+
 /**Verify if the appointments overlaps  */
 async function verrifAppointmentDurationConflit(idemp,datetime,datefin){
     try{
         const date1 = new Date(datetime);
-        const date2 = new Date(datefin);       
+        const date2 = new Date(datefin);     
+        console.log(date1, date2, idemp);
         return appointmentModel.aggregate([
         {
             $match: {
             userEmpId: new mongoose.Types.ObjectId(idemp),
             datetime: {
-                $gte: new Date(date1.getFullYear(), date1.getMonth(), date1.getDate()), // Start of day for date1
-                $lt: new Date(date1.getFullYear(), date1.getMonth(), date1.getDate() + 1) // Start of next day for date1
+                $gte: new Date(date1.getFullYear(), date1.getMonth(), date1.getDate()), 
+                $lt: new Date(date1.getFullYear(), date1.getMonth(), date1.getDate() + 1) 
             }
             }
         },
@@ -117,7 +161,7 @@ async function verrifAppointmentDurationConflit(idemp,datetime,datefin){
                 }
             }                  
         }
-        ])
+        ]);        
     }catch(err){
         console.log(err);
     }

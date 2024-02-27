@@ -14,6 +14,7 @@ const userSchema = mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "Services"
     }],
+    compte: Number
 });
 
 const userModel = mongoose.model('Users', userSchema);
