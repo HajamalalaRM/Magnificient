@@ -10,7 +10,7 @@ const offerModel = require('../models/offers.model');
 const transactionModel = require('../models/transactions.model');
 
 
-router.post('/transactions', function(req,res){
+router.get('/transactions', function(req,res){
     transactionModel.aggregate([        
         {
             $match:{
@@ -85,14 +85,15 @@ router.post('/pay', function(req, res) {
 
 
 /**Payement by the client online */
-router.post('online_payement', function(req,res){
+router.post('/online_payement', async function(req,res){
     const idappointment = req.body.idappointment;
     let pay = req.body.pay;
-    let user = userModel.findById(req.body.iduser);    
+    let user = await userModel.findById(req.body.iduser);
+    console.log("USER : ",user)   
     if(user.compte>=pay){
         user.compte = user.compte-pay;
         getDetailsServicesCoastWithOffer(idappointment)
-        .then(async data=>{
+        .then(async (data)=>{
             if(data){
                 let data1 = data[0];            
                 let payement = new payementModel();
@@ -100,9 +101,8 @@ router.post('online_payement', function(req,res){
                 payement.datepay = new Date();
                 payement.coast = data1.coastSumFinal;
                 payement.pay = pay;
-
                 getPayementByAppointmentId(idappointment)
-                .then(async payed=>{                
+                .then(async payed=>{
                     let rest = pay-payement.coast;            
                     if(payed.length>0)rest += payed[0].totalpay;
                     console.log("REST: ",rest);
@@ -117,7 +117,7 @@ router.post('online_payement', function(req,res){
                     payement.idappointment = idappointment;
                     payement.userClientId = data1.userClientId;
                     payement.userEmpId = data1.userEmpId;
-                    payement.servicesId = data1.services.map(d =>new mongoose.Types.ObjectId(d._id));
+                    payement.servicesId = data1.discountedServices.map(d =>new mongoose.Types.ObjectId(d._id));
         
                     user.save();
                     payement.save()
@@ -144,13 +144,14 @@ router.post('online_payement', function(req,res){
 router.post('/waitting_payement', function(req, res) {
     getDetailsServicesCoastWithOffer(req.body.idappointment)
     .then(data=>{
-        console.log("DATA :",data);
         appointmentModel.findById(req.body.idappointment)
         .then(appointment=>{
             if(appointment){
                 appointment.status = "unpayed";
                 appointment.save();                   
                 res.send({status:200, data: data});
+            }else{
+                res.send({status:200, message: "no appointment"});
             }
         });
     })
@@ -236,7 +237,7 @@ async function getDetailsServicesCoastWithOffer(idappointment) {
 
         // const percentage = 0;
         const percentage = d1.length > 0 ? d1[0].percentage: 0;
-        console.log(d1);
+        // console.log(d1);
 
         const lastdata = await appointmentModel.aggregate([
             {
@@ -293,7 +294,7 @@ async function getDetailsServicesCoastWithOffer(idappointment) {
                 }
             }
         ]);
-          
+        // console.log("lastdata : ",lastdata);
         return lastdata;
     } catch (err) {
         console.error(err);

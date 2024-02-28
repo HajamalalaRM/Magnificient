@@ -1,7 +1,6 @@
 var express = require('express');
 var router = express.Router();
 const mongoose = require('mongoose');
-const nodemailer = require('nodemailer');
 
 
 const userModel = require('../models/users.model');
@@ -35,19 +34,7 @@ router.post('/signup', async (req, res)=> {
   }
 });
 
-/**Send email */
-async function sendMail(user, callback){
-  let transporter = nodemailer.createTransport({
-    host: "smtp.forwardemail.net",
-    port: 465,
-    secure: true,
-    auth: {
-    // TODO: replace `user` and `pass` values from <https://forwardemail.net>
-    user: "hajamalalarm2@gmail.com",
-    pass: "",
-  },
-  })
-}
+
 /**  User Authentification
  * 
  * email
