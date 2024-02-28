@@ -98,7 +98,7 @@ router.post('/search/date',(req,res)=>{
         $match: {      
             datetime: {
                 $gte: new Date(date1),
-                $lt: new Date(date2)
+                $lte: new Date(date2)
             }
         }
     }
@@ -122,6 +122,52 @@ router.post('/search/description',(req,res)=>{
         res.status(200).json({dataSearch: data});
     }).catch(err=>{
         res.status(200).json({error: "Can't search"});  
+    });
+});
+
+/**Get historique */
+router.post('/historique', (req,res)=>{
+    let iduser = req.body.iduser;
+    db.appointments.aggregate([
+        {
+            $match: {
+                userClientId: new mongoose.Types.ObjectId(iduser),
+                status: "payed"
+            }
+        },{
+            $sort:{
+                datetime: -1
+            }
+        },{
+            $lookup:{
+                from: "users",
+                localField: "userEmpId",
+                foreignField: "_id",
+                as: "employe"
+            }
+        },{
+            $lookup:{
+                from: "services",
+                localField: "servicesId",
+                foreignField: "_id",
+                as: "services"
+            }
+        },{
+            $project: {
+                _id: 1,
+                datetime: 1,
+                status: 1,
+                description:1,
+                "employe._id": 1,
+                "employe.name": 1,
+                "services.name":1
+            }
+          }
+    ])
+    .then(data=>{
+        res.status(200).json({dataHistory: data});
+    }).catch(err=>{
+        res.status(200).json({error: "Can't reach history"});  
     });
 });
 

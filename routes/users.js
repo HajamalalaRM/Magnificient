@@ -61,11 +61,50 @@ router.get('/employes', (req, res)=>{
 });
 
 /**Get All Users details */
-router.get('/listAllUsers',(req, res)=>{
+router.get('/listAllClients',(req, res)=>{
   userModel.aggregate([
     {
       $match:{
         role: 1
+      }
+    },{
+      $lookup:{
+        from: "services",
+        localField: "servicespreferences",
+        foreignField: "_id",
+        as: "preferred_services"
+      }
+    },{
+      $lookup:{
+        from: "users",
+        localField: "employepreferences",
+        foreignField: "_id",
+        as: "preferred_employes"
+      }
+    },{
+      $project: {
+        _id: 1,
+        name: 1,
+        email: 1,
+        contact: 1,
+        role: 1,
+        preferred_services: 1,
+        "preferred_employes._id": 1,
+        "preferred_employes.name": 1    
+      }
+    }
+  ])
+  .then(users=>{
+    res.status(200).json({usersdetails: users});
+  })
+
+});
+/**Get All Users details */
+router.get('/listAllEmps',(req, res)=>{
+  userModel.aggregate([
+    {
+      $match:{
+        role: 2
       }
     },{
       $lookup:{
@@ -166,8 +205,7 @@ router.post('/updateUser',(req,res)=>{
  */
 router.post('/empAppointment',(req,res)=>{
   const userId = req.body.iduser;
-  if(userId){
-        
+  if(userId){        
     userModel.aggregate([
       {
         $match: {
@@ -239,6 +277,89 @@ router.post('/empAppointment',(req,res)=>{
   }
 });
 
+/**Get employe appointments details
+ * 
+ * iduser
+ */
+router.post('/empNextAppointment',(req,res)=>{
+  const userId = req.body.iduser;
+  if(userId){        
+    userModel.aggregate([
+      {
+        $match: {
+          role: 2,
+          _id: new mongoose.Types.ObjectId(userId)
+        }
+      },
+      {
+        $lookup: {
+          from: "appointments",
+          localField: "_id",
+          foreignField: "userEmpId",
+          as: "userappointments"
+        }
+      },
+      {
+        $unwind: "$userappointments"
+      },
+      {
+        $lookup: {
+          from: "services",
+          localField: "userappointments.servicesId",
+          foreignField: "_id",
+          as: "userappointments.serviceDetails"
+        }
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "userappointments.userClientId",
+          foreignField: "_id",
+          as: "userappointments.clientDetails"
+        }
+      },
+      {
+        $match: {
+          "userappointments.status": "in progress"
+        }
+      },
+      {
+        $sort: { "userappointments.datetime": 1 } 
+      },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          email: 1,
+          contact: 1,
+          "userappointments._id": 1,
+          "userappointments.datetime": 1,
+          "userappointments.dateFin": 1,
+          "userappointments.description": 1,
+          "userappointments.status": 1,
+          "userappointments.serviceDetails": 1,
+          "userappointments.clientDetails._id": 1,
+          "userappointments.clientDetails.name": 1
+        }
+      },
+      {
+        $group: {
+          _id: "$_id",
+          name: { $first: "$name" },
+          email: { $first: "$email" },
+          contact: { $first: "$contact" },
+          userappointments: { $push: "$userappointments" }
+        }
+      }
+    ])
+    .then(user=>{
+      res.status(200).json({userappointments: user});
+    })
+  }else{
+    res.status(200).json({status: 200,message: "Need iduser"});      
+  }
+});
+
 /**Get client appointments details
  * 
  * iduser
@@ -246,7 +367,6 @@ router.post('/empAppointment',(req,res)=>{
 router.post('/clientAppointment',(req,res)=>{
   const userId = req.body.iduser;
   if(userId){
-        
     userModel.aggregate([
       {
         $match: {
