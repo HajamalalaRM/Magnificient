@@ -266,9 +266,8 @@ async function getDetailsServicesCoastWithOffer(idappointment){
                         offers: offersSpecial
                       }
                     }
-                ]).then(haha=>{
-                    console.log(haha[0].coastSumFinal);
-                    console.log(haha);
+                ]).then(lastdata=>{
+                    return lastdata;
                 })
                   
             })
