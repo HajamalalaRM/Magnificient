@@ -38,7 +38,8 @@ router.post('/pay', function(req, res) {
                 payement.idappointment = idappointment;
                 payement.userClientId = data1.userClientId;
                 payement.userEmpId = data1.userEmpId;
-                payement.servicesId = data1.services.map(d =>new mongoose.Types.ObjectId(d._id));
+
+                payement.servicesId = data1.discountedServices.map(d =>new mongoose.Types.ObjectId(d._id));
     
                 payement.save()
                 .then(d=>{
