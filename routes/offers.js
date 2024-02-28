@@ -20,12 +20,21 @@ router.post('/add',function(req, res) {
 
 
 router.get('/offerList',function(req,res){
-    offerModel.find()
+    offerModel.aggregate([
+        {
+            $lookup:{
+              from: "services",
+              localField: "services",
+              foreignField: "_id",
+              as: "services_concerned"
+            }
+        }
+    ])
     .then(data=>{
         res.send({status:200, offers: data});
     })
     .catch(err=>{
-        res.send({error:"error fetching offers list"});
+        res.send({error:"error fetching offers list",message:err});
     });
 });
 

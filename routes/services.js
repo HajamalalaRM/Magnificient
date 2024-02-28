@@ -29,7 +29,7 @@ router.post('/add',function(req, res) {
 });
 
 router.post('/serviceDetail',function(req,res){
-  serviceModel.findOne({idservice:new mongoose.Types.ObjectId(req.body.idservice)})
+  serviceModel.findOne({_id:new mongoose.Types.ObjectId(req.body.idservice)})
   .then(data=>{
     res.send({status:200, data: data});
   })

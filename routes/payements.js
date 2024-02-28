@@ -118,6 +118,7 @@ router.post('online_payement', function(req,res){
 router.post('/waitting_payement', function(req, res) {
     getDetailsServicesCoastWithOffer(req.body.idappointment)
     .then(data=>{
+        // console.log("DATA :",data);
         appointmentModel.findById(req.body.idappointment)
         .then(appointment=>{
             if(appointment){
@@ -152,132 +153,127 @@ async function getPayementByAppointmentId(idappointment){
     }
 };
 
-async function getDetailsServicesCoastWithOffer(idappointment){
-    try{
-        appointmentModel.aggregate([
+async function getDetailsServicesCoastWithOffer(idappointment) {
+    try {
+        const d = await appointmentModel.aggregate([
             {
-              $match: {
-                _id: new mongoose.Types.ObjectId(idappointment)
-              }
+                $match: {
+                    _id: new mongoose.Types.ObjectId(idappointment)
+                }
             },
             {
-              $lookup: {
-                from: "services",
-                localField: "servicesId",
-                foreignField: "_id",
-                as: "appointments_services"
-              }
+                $lookup: {
+                    from: "services",
+                    localField: "servicesId",
+                    foreignField: "_id",
+                    as: "appointments_services"
+                }
             },
             {
-              $unwind: "$appointments_services"
+                $unwind: "$appointments_services"
             },
             {
-              $group: {
-                _id: "$_id",
-                userClientId: { $first: "$userClientId" },
-                userEmpId: { $first: "$userEmpId" },
-                datetime: { $first: "$datetime" },
-                status: { $first: "$status" },
-                description: { $first: "$description" },
-                dateFin: { $first: "$dateFin" },
-                services: { $push: "$appointments_services._id" }
-              }
+                $group: {
+                    _id: "$_id",
+                    userClientId: { $first: "$userClientId" },
+                    userEmpId: { $first: "$userEmpId" },
+                    datetime: { $first: "$datetime" },
+                    status: { $first: "$status" },
+                    description: { $first: "$description" },
+                    dateFin: { $first: "$dateFin" },
+                    services: { $push: "$appointments_services._id" }
+                }
             }
-        ])
-        .then(d=>{
-            let dt = d[0].datetime;
-            
-            offerModel.aggregate([
-                {
-                    $match: {
-                      $expr: {
+        ]);
+
+        const dt = d[0].datetime;
+
+        const d1 = await offerModel.aggregate([
+            {
+                $match: {
+                    $expr: {
                         $and: [
-                          { $lte: ["$start", new Date(dt)] }, 
-                          { $gte: ["$end", new Date(dt)] }   
+                            { $lte: ["$start", new Date(dt)] },
+                            { $gte: ["$end", new Date(dt)] }
                         ]
-                      }
                     }
                 }
-            ])
-            .then(d1=>{
-                // console.log(d1);
-                let offersSpecial = [];
-                d1.forEach(element => {
-                    offersSpecial.push(element.name)
-                });
-                // console.log(offersSpecial);
-                const appointmentStrings = d[0].services.map(id => id.toString());
-                const offerStrings = d1[0].services.map(id => id.toString());
+            }
+        ]);
 
-                const matchingElements = appointmentStrings.filter(id => offerStrings.includes(id));
-                let percentage = 15;
-                // console.log("Match : ",matchingElements);
-                appointmentModel.aggregate([
-                    {
-                      $match: {
-                        _id: new mongoose.Types.ObjectId(idappointment)
-                      }
-                    },
-                    {
-                      $lookup: {
-                        from: "services",
-                        localField: "servicesId",
-                        foreignField: "_id",
-                        as: "appointments_services"
-                      }
-                    },
-                    {
-                      $unwind: "$appointments_services"
-                    },
-                    {
-                      $group: {
-                        _id: "$_id",
-                        userClientId: { $first: "$userClientId" },
-                        userEmpId: { $first: "$userEmpId" },
-                        datetime: { $first: "$datetime" },
-                        status: { $first: "$status" },
-                        description: { $first: "$description" },
-                        dateFin: { $first: "$dateFin" },
-                        services: { $push: "$appointments_services._id" },
-                        coastSum: { $sum: "$appointments_services.coast" },
-                        discountedServices: {
-                          $push: {
+        const offersSpecial = d1.map(element => element.name);
+
+        const appointmentStrings = d[0].services.map(id => id.toString());
+        const offerStrings = d1.length > 0 ? d1[0].services.map(id => id.toString()) : [];
+
+        const matchingElements = appointmentStrings.filter(id => offerStrings.includes(id));
+
+        // const percentage = 0;
+        const percentage = d1.length > 0 ? d1[0].percentage: 0;
+        console.log(d1);
+
+        const lastdata = await appointmentModel.aggregate([
+            {
+                $match: {
+                    _id: new mongoose.Types.ObjectId(idappointment)
+                }
+            },
+            {
+                $lookup: {
+                    from: "services",
+                    localField: "servicesId",
+                    foreignField: "_id",
+                    as: "appointments_services"
+                }
+            },
+            {
+                $unwind: "$appointments_services"
+            },
+            {
+                $group: {
+                    _id: "$_id",
+                    userClientId: { $first: "$userClientId" },
+                    userEmpId: { $first: "$userEmpId" },
+                    datetime: { $first: "$datetime" },
+                    status: { $first: "$status" },
+                    description: { $first: "$description" },
+                    dateFin: { $first: "$dateFin" },
+                    services: { $push: "$appointments_services._id" },
+                    coastSum: { $sum: "$appointments_services.coast" },
+                    discountedServices: {
+                        $push: {
                             $cond: [
-                              { $in: ["$appointments_services._id", matchingElements.map(id =>new mongoose.Types.ObjectId(id)) ] },
-                              { _id: "$appointments_services._id", coast: { $subtract: ["$appointments_services.coast", { $multiply: ["$appointments_services.coast", { $divide: [percentage, 100] }] }] } }, 
-                              { _id: "$appointments_services._id", coast: "$appointments_services.coast" } 
+                                { $in: ["$appointments_services._id", matchingElements.map(id => new mongoose.Types.ObjectId(id)) ] },
+                                { _id: "$appointments_services._id", coast: { $subtract: ["$appointments_services.coast", { $multiply: ["$appointments_services.coast", { $divide: [percentage, 100] }] }] } }, 
+                                { _id: "$appointments_services._id", coast: "$appointments_services.coast" } 
                             ]
-                          }
                         }
-                      }
-                    },
-                    {
-                      $project: {
-                        _id: 1,
-                        userClientId: 1,
-                        userEmpId: 1,
-                        datetime: 1,
-                        status: 1,
-                        description: 1,
-                        dateFin: 1,
-                        coastSum: 1,
-                        discountedServices: 1,
-                        coastSumFinal: { $sum: "$discountedServices.coast" },
-                        offers: offersSpecial
-                      }
                     }
-                ]).then(lastdata=>{
-                    return lastdata;
-                })
-                  
-            })
-        })
-        .catch(err=>{
-            console.log(err)
-        })
-    }catch(err){
-        console.log(err);
+                }
+            },
+            {
+                $project: {
+                    _id: 1,
+                    userClientId: 1,
+                    userEmpId: 1,
+                    datetime: 1,
+                    status: 1,
+                    description: 1,
+                    dateFin: 1,
+                    coastSum: 1,
+                    discountedServices: 1,
+                    coastSumFinal: { $sum: "$discountedServices.coast" },
+                    offers: offersSpecial
+                }
+            }
+        ]);
+          
+        return lastdata;
+    } catch (err) {
+        console.error(err);
+        throw err;
     }
 };
+
 
 module.exports = router;

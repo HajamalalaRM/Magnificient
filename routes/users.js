@@ -1,6 +1,7 @@
 var express = require('express');
 var router = express.Router();
 const mongoose = require('mongoose');
+const nodemailer = require('nodemailer');
 
 
 const userModel = require('../models/users.model');
@@ -20,7 +21,9 @@ router.post('/signup', async (req, res)=> {
     .then(async (emailNotExist) => {
         if(emailNotExist){
           let userObj = new userModel(req.body);
+          userObj.compte = 0;
           let d = await userObj.save();
+
           res.send({status:201, message: 'User addded successfully', id: d._id});
         }else{
           res.status(500).json({error: 'Sign up error',cause:'email already exist'})
@@ -32,6 +35,19 @@ router.post('/signup', async (req, res)=> {
   }
 });
 
+/**Send email */
+async function sendMail(user, callback){
+  let transporter = nodemailer.createTransport({
+    host: "smtp.forwardemail.net",
+    port: 465,
+    secure: true,
+    auth: {
+    // TODO: replace `user` and `pass` values from <https://forwardemail.net>
+    user: "hajamalalarm2@gmail.com",
+    pass: "",
+  },
+  })
+}
 /**  User Authentification
  * 
  * email
@@ -175,6 +191,7 @@ router.post('/detailUser',(req, res)=>{
           email: 1,
           contact: 1,
           role: 1,
+          compte: 1,
           preferred_services: 1,
           employee_users: 1
         }
@@ -647,7 +664,6 @@ router.post('/money_request',async (req,res)=>{
     datetime: new Date(),
     validated: false
   };
-  // console.log(data);
   try{
     let transaction = new transactionModel(data);
     let d = await transaction.save();
