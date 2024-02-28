@@ -7,7 +7,32 @@ const appointmentModel = require('../models/appointments.model');
 const userModel = require('../models/users.model');
 const serviceModel = require('../models/services.model');
 const offerModel = require('../models/offers.model');
+const transactionModel = require('../models/transactions.model');
 
+
+router.post('/transactions', function(req,res){
+    transactionModel.aggregate([        
+        {
+            $match:{
+                validated: false,
+                type: "money request"
+            }
+        },
+        {
+          $lookup: {
+            from: "users",
+            localField: "iduser",
+            foreignField: "_id",
+            as: "users"
+          }
+        }
+      ]).then(data=>{
+        res.send({data:data});
+      })
+      .catch(err=>{
+        console.log(err);
+      })
+});
 /**Payement */
 router.post('/pay', function(req, res) {
     const idappointment = req.body.idappointment;
