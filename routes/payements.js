@@ -118,7 +118,7 @@ router.post('online_payement', function(req,res){
 router.post('/waitting_payement', function(req, res) {
     getDetailsServicesCoastWithOffer(req.body.idappointment)
     .then(data=>{
-        // console.log("DATA :",data);
+        console.log("DATA :",data);
         appointmentModel.findById(req.body.idappointment)
         .then(appointment=>{
             if(appointment){
