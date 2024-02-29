@@ -39,14 +39,14 @@ app.use('/stats', statsRouter);
 
 
 //--------------------------------------------------------------------
-  mongoose.connect('mongodb://127.0.0.1:27017/tp1')
+  mongoose.connect("mongodb+srv://m1p11api:PdGFmN2el5hmOPlO@m1p11api.gxfuco9.mongodb.net/m1p11api?retryWrites=true&w=majority&appName=m1p11api")
   .then(()=>{
     app.listen(3000, ()=>{
       console.log('app listening on port 3000');
     })
   })
   .catch(err=>{
-    console.log("Cannot connect to the database")
+    console.log("Cannot failed: ",err)
   })
 
 
