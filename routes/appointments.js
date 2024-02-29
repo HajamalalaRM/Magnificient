@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 
 const appointmentModel = require('../models/appointments.model')
 const serviceModel = require('../models/services.model')
+const userModel = require('../models/users.model')
 
 /* List all appointments. */
 router.get('/', function(req, res) {
@@ -113,12 +114,75 @@ router.post('/search/date',(req,res)=>{
 /**Search by description */
 router.post('/search/description',(req,res)=>{
     let search = req.body.search;    
-    appointmentModel.find({
-        description: {
-            $regex: search,
-            $options: "i"
+    let userId = req.body.iduser;    
+    userModel.aggregate([
+        {
+          $match: {
+            role: 2,
+            _id: new mongoose.Types.ObjectId(userId)
+          }
+        },
+        {
+          $lookup: {
+            from: "appointments",
+            localField: "_id",
+            foreignField: "userEmpId",
+            as: "userappointments"
+          }
+        },
+        {
+          $unwind: "$userappointments"
+        },
+        {
+          $lookup: {
+            from: "services",
+            localField: "userappointments.servicesId",
+            foreignField: "_id",
+            as: "userappointments.serviceDetails"
+          }
+        },
+        {
+          $lookup: {
+            from: "users",
+            localField: "userappointments.userClientId",
+            foreignField: "_id",
+            as: "userappointments.clientDetails"
+          }
+        },
+        {
+          $match: {
+            "userappointments.description": { $regex: search, $options: "i" }
+          }
+        },
+        {
+          $sort: { "userappointments.datetime": 1 } 
+        },
+        {
+          $project: {
+            _id: 1,
+            name: 1,
+            email: 1,
+            contact: 1,
+            "userappointments._id": 1,
+            "userappointments.datetime": 1,
+            "userappointments.dateFin": 1,
+            "userappointments.description": 1,
+            "userappointments.status": 1,
+            "userappointments.serviceDetails": 1,
+            "userappointments.clientDetails._id": 1,
+            "userappointments.clientDetails.name": 1
+          }
+        },
+        {
+          $group: {
+            _id: "$_id",
+            name: { $first: "$name" },
+            email: { $first: "$email" },
+            contact: { $first: "$contact" },
+            userappointments: { $push: "$userappointments" }
+          }
         }
-    }).then(data=>{
+      ]).then(data=>{
         res.status(200).json({dataSearch: data});
     }).catch(err=>{
         res.status(200).json({error: "Can't search"});  

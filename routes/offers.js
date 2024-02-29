@@ -28,6 +28,10 @@ router.get('/offerList',function(req,res){
               foreignField: "_id",
               as: "services_concerned"
             }
+        },{
+            $sort:{
+                "start":-1
+            }
         }
     ])
     .then(data=>{
