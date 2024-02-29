@@ -8,7 +8,7 @@ const userModel = require('../models/users.model')
  * coast
  * durationMinute
  */
-router.post('/add',function(req, res) {
+router.post('/commisionByEmp',function(req, res) {
     let serviceObj = new serviceModel(req.body);
     serviceObj.save()
     .then(d=>{
